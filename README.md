@@ -12,4 +12,4 @@ A guide on how to compile SourceMod plugins can be found here: https://wiki.alli
 
 Modifications include:
 
- - [Adding of a 32 byte randomly generated string to demo and log files to ensure they are unique](commit/f300174bf2d3da3093fd6d941e19ac6e7c73f59f)
+ - [Adding of a 32 byte randomly generated string to demo and log files to ensure they are unique](https://github.com/Outlaw11A/WarMod/commit/f300174bf2d3da3093fd6d941e19ac6e7c73f59f)
