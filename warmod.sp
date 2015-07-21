@@ -4696,11 +4696,11 @@ void ReadyChecked()
 			ReplaceString(ct_name, sizeof(ct_name), ".", "");
 			StringToLower(t_name, sizeof(t_name));
 			StringToLower(ct_name, sizeof(ct_name));
-			Format(g_log_filename, sizeof(g_log_filename), "%s-%s%s-%04x-%s-%s-vs-%s", date, startHour, startMin, GetConVarInt(FindConVar("hostport")), g_map, t_name, ct_name);
+			Format(g_log_filename, sizeof(g_log_filename), "%s-%s%s-%s-%s-%s-vs-%s", date, startHour, startMin, generate32ByteHash(), g_map, t_name, ct_name);
 		}
 		else
 		{
-			Format(g_log_filename, sizeof(g_log_filename), "%s-%s%s-%04x-%s", date, startHour, startMin, GetConVarInt(FindConVar("hostport")), g_map);
+			Format(g_log_filename, sizeof(g_log_filename), "%s-%s%s-%s-%s", date, startHour, startMin, generate32ByteHash(), g_map);
 		}
 		
 		char save_dir[128];
@@ -8979,4 +8979,26 @@ public Action SetName(int client, int args)
 	
 	CheckReady();
 	return Plugin_Handled;
+}
+
+char generate32ByteHash()
+{
+
+	// Character array to hold our characters, +1 for the null end character
+	char hash[33];
+
+	// Our list of characters
+	char listOfChar[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+	// For 1 to 32 generate a random character and append to end of character array
+	for(int i = 1; i <= 32; i++)
+	{
+		int randomInt = GetRandomInt(1, sizeof(listOfChar)-1);
+		char tempString[2];
+		strcopy(tempString, 2, listOfChar{randomInt-1});
+		StrCat(hash, sizeof(hash), tempString);
+	}
+
+	return hash;
+
 }
