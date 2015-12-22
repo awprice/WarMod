@@ -13,16 +13,16 @@
 #define DEFAULT_CT_NAME			"Counter-Terrorists"
 
 #define PLAYER_DISC				-1
-#define PLAYER_READY				1
+#define PLAYER_READY			1
 #define PLAYER_UNREADY			2
 
 #define SCORE_T					0
-#define SCORE_CT					1
+#define SCORE_CT				1
 
-#define SCORE_FIRST_HALF			0
+#define SCORE_FIRST_HALF		0
 #define SCORE_SECOND_HALF		1
 
-#define DMG_MSG_SIZE				8192
+#define DMG_MSG_SIZE			8192
 
 #define MAX_PARAM_SIZE			512
 
@@ -30,29 +30,31 @@
 #define LOG_HIT_OFFSET			7
 
 #define LOG_HIT_SHOTS			0
-#define LOG_HIT_HITS				1
+#define LOG_HIT_HITS			1
 #define LOG_HIT_KILLS			2
 #define LOG_HIT_HEADSHOTS		3
 #define LOG_HIT_TEAMKILLS		4
 #define LOG_HIT_DAMAGE			5
 #define LOG_HIT_DEATHS			6
 #define LOG_HIT_GENERIC			7
-#define LOG_HIT_HEAD				8
+#define LOG_HIT_HEAD			8
 #define LOG_HIT_CHEST			9
 #define LOG_HIT_STOMACH			10
 #define LOG_HIT_LEFTARM			11
-#define LOG_HIT_RIGHTARM			12
+#define LOG_HIT_RIGHTARM		12
 #define LOG_HIT_LEFTLEG			13
-#define LOG_HIT_RIGHTLEG			14
-#define LOG_HIT_NUM				15
+#define LOG_HIT_RIGHTLEG		14
+#define LOG_HIT_TEAM_HITS		15
+#define LOG_HIT_TEAM_DAMAGE		16
+#define LOG_HIT_NUM				17
 
-#define ASSIST_COUNT				0
+#define ASSIST_COUNT			0
 #define ASSIST_COUNT_TK			1
 #define ASSIST_NUM				2
 
 #define CLUTCH_LAST				0
 #define CLUTCH_VERSUS			1
-#define CLUTCH_FRAGS				2
+#define CLUTCH_FRAGS			2
 #define CLUTCH_WON				3
 #define CLUTCH_NUM				4
 
@@ -61,19 +63,19 @@
 #define MATCH_KILLS				2
 #define MATCH_HEADSHOTS			3
 #define MATCH_TEAMKILLS			4
-#define MATCH_DAMAGE				5
-#define MATCH_ASSIST				6
-#define MATCH_DEATHS				7
-#define MATCH_ATA					8
-#define MATCH_1K					9
-#define MATCH_2K					10
-#define MATCH_3K					11
-#define MATCH_4K					12
-#define MATCH_5K					13
+#define MATCH_DAMAGE			5
+#define MATCH_ASSIST			6
+#define MATCH_DEATHS			7
+#define MATCH_ATA				8
+#define MATCH_1K				9
+#define MATCH_2K				10
+#define MATCH_3K				11
+#define MATCH_4K				12
+#define MATCH_5K				13
 #define MATCH_ROUND				14
 #define MATCH_LAST				15
-#define MATCH_WON					16
-#define MATCH_NUM					17
+#define MATCH_WON				16
+#define MATCH_NUM				17
 
 char g_team_name_cache[16][64];
 
@@ -150,6 +152,23 @@ stock void WM_PrintToChat(int client, char[] format, any ...)
 	}
 }
 
+stock void GetServerString(char[] format, int size)
+{
+	char NetIP[32];
+	int pieces[4];
+	int longip = GetConVarInt(FindConVar("hostip"));
+	char servername[255];
+	GetConVarString(FindConVar("hostname"), servername, sizeof(servername));
+	
+	pieces[0] = (longip >> 24) & 0x000000FF;
+	pieces[1] = (longip >> 16) & 0x000000FF;
+	pieces[2] = (longip >> 8) & 0x000000FF;
+	pieces[3] = longip & 0x000000FF;
+
+	Format(NetIP, sizeof(NetIP), "%d.%d.%d.%d", pieces[0], pieces[1], pieces[2], pieces[3]);
+	
+	Format(format, size, "{\"name\": \"%s\", \"ip\": \"%s\", \"port\": %i}", servername, NetIP, GetConVarInt(FindConVar("hostport")));
+}
 
 /**
  *  get the standard logstring ("player<userid><authid><team>") for the specified client
@@ -209,7 +228,7 @@ stock int CS_GetLogString(int client, char[] LogString, int size)
 	
 	if (!IsClientInGame(client))
 	{
-		Format(LogString, size, "null");
+		Format(LogString, size, "{}");
 		return -1;
 	}
 
@@ -243,7 +262,7 @@ stock int CS_GetAdvLogString(int client, char[] LogString, int size)
 {
 	if (client == 0 || !IsClientInGame(client))
 	{
-		Format(LogString, size, "null");
+		Format(LogString, size, "{}");
 		return -1;
 	}
 	
@@ -262,7 +281,7 @@ stock int CS_GetAdvLogString(int client, char[] LogString, int size)
 
 	EscapeString(player_name, sizeof(player_name));
 	EscapeString(authid, sizeof(authid));
-	Format(LogString, size, "{\"name\": \"%s\", \"userId\": %d, \"uniqueId\": \"%s\", \"team\": %d, \"origin\": [%.2f, %.2f, %.2f], \"velocity\": [%.2f, %.2f, %.2f], \"view\": [%.2f, %.2f, %.2f], \"health\": %d, \"armor\": %d, \"helmet\": %d}", player_name, userid, authid, GetClientTeam(client), player_origin[0], player_origin[1], player_origin[2] + GetEntPropFloat(client, Prop_Send, "m_vecViewOffset[2]"), GetEntPropFloat(client, Prop_Send, "m_vecVelocity[0]"), GetEntPropFloat(client, Prop_Send, "m_vecVelocity[1]"), GetEntPropFloat(client, Prop_Send, "m_vecVelocity[2]"), eye_angles[0], eye_angles[1], eye_angles[2], GetEntProp(client, Prop_Send, "m_iHealth"), GetEntProp(client, Prop_Send, "m_ArmorValue"), GetEntProp(client, Prop_Send, "m_bHasHelmet"));
+	Format(LogString, size, "{\"name\": \"%s\", \"userId\": %d, \"uniqueId\": \"%s\", \"team\": %d, \"origin\": {\"x\": %.2f, \"y\": %.2f, \"z\": %.2f}, \"velocity\": {\"x\": %.2f, \"y\": %.2f, \"z\": %.2f}, \"view\": {\"x\": %.2f, \"y\": %.2f, \"z\": %.2f}, \"health\": %d, \"armor\": %d, \"helmet\": %d}", player_name, userid, authid, GetClientTeam(client), player_origin[0], player_origin[1], player_origin[2] + GetEntPropFloat(client, Prop_Send, "m_vecViewOffset[2]"), GetEntPropFloat(client, Prop_Send, "m_vecVelocity[0]"), GetEntPropFloat(client, Prop_Send, "m_vecVelocity[1]"), GetEntPropFloat(client, Prop_Send, "m_vecVelocity[2]"), eye_angles[0], eye_angles[1], eye_angles[2], GetEntProp(client, Prop_Send, "m_iHealth"), GetEntProp(client, Prop_Send, "m_ArmorValue"), GetEntProp(client, Prop_Send, "m_bHasHelmet"));
 
 	return client;
 }
@@ -557,6 +576,18 @@ stock void EscapeString(char[] value, int size)
 	ReplaceString(value, size, "\n", "\\n");
 	ReplaceString(value, size, "\f", "\\f");
 	ReplaceString(value, size, "\r", "\\r");
+	ReplaceString(value, size, "\\", "");
+	ReplaceString(value, size, "/", "");
+	ReplaceString(value, size, "#", "");
+	ReplaceString(value, size, "*", "");
+	ReplaceString(value, size, "?", "");
+	ReplaceString(value, size, "<", "");
+	ReplaceString(value, size, ">", "");
+	ReplaceString(value, size, "|", "");
+	ReplaceString(value, size, "'", "");
+	ReplaceString(value, size, ";", "");
+	ReplaceString(value, size, "`", "");
+	ReplaceString(value, size, "~", "");
 }
 
 

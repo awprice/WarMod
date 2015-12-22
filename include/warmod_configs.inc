@@ -9,10 +9,16 @@ void CheckConFigFiles(char[] WM_VERSION)
 		DeleteFile(cfgFile);
 	}
 	
+	BuildPath(Path_SM, cfgFile, sizeof(cfgFile), "plugins/warmod_b.smx");
+	if (FileExists(cfgFile))
+	{
+		DeleteFile(cfgFile);
+	}
+	
 	Format(dirName, sizeof(dirName), "cfg/sourcemod");
 	if (!DirExists(dirName))
 	{
-		CreateDirectory(dirName, 751);
+		CreateDirectory(dirName, 511);
 	}
 	
 	CreateTranslationFile();
@@ -32,7 +38,7 @@ void CheckConFigFiles(char[] WM_VERSION)
 	Format(dirName, sizeof(dirName), "cfg/warmod");
 	if (!DirExists(dirName))
 	{
-		CreateDirectory(dirName, 751);
+		CreateDirectory(dirName, 511);
 	}
 	
 	Format(cfgFile, sizeof(cfgFile), "cfg/warmod/ruleset_global.cfg");
@@ -77,6 +83,12 @@ void CheckConFigFiles(char[] WM_VERSION)
 		RuleSet_OnMapLoad(WM_VERSION);
 	}
 	
+	Format(cfgFile, sizeof(cfgFile), "cfg/warmod/ruleset_knife.cfg");
+	if (!FileExists(cfgFile))
+	{
+		RuleSet_Knife(WM_VERSION);
+	}
+	
 	Format(cfgFile, sizeof(cfgFile), "cfg/warmod/on_match_end.cfg");
 	if (!FileExists(cfgFile))
 	{
@@ -87,6 +99,12 @@ void CheckConFigFiles(char[] WM_VERSION)
 	if (!FileExists(cfgFile))
 	{
 		CreateVetoMapListFile();
+	}
+	
+	Format(cfgFile, sizeof(cfgFile), "cfg/warmod/team_captains.txt");
+	if (!FileExists(cfgFile))
+	{
+		Team_Captains_File();
 	}
 }
 
@@ -306,6 +324,7 @@ static void RuleSet_Global(char[] WM_VERSION)
 	WriteFileLine(file, "wm_veto_bo3				\"0\"	//Veto Style: 0 = Normal, 1 = New");
 	WriteFileLine(file, "wm_veto_random				\"0\"	//After the vetoing is done, will a map be picked at random?");
 	WriteFileLine(file, "wm_veto_select				\"1\"	//On last two maps of Veto Bo1 will it be select map to play: 0 = No, 1 = Yes");
+	WriteFileLine(file, "wm_captain_from_file		\"0\"	//Get team captains from file? 0 = No, 1 = Yes");
 	WriteFileLine(file, "wm_pugsetup_maplist_file			\"warmod/veto_maps_list.txt\"	//Veto Map List to read from. Located in cfg folder");
 	WriteFileLine(file, "wm_pugsetup_randomize_maps		\"1\"	//When maps are shown in the map vote/veto, should their order be randomized?");
 	WriteFileLine(file, "");
@@ -510,6 +529,12 @@ static void RuleSet_OnMapLoad(char[] WM_VERSION)
 	WriteFileLine(file, "");
 	WriteFileLine(file, "// FTP Upload");
 	WriteFileLine(file, "");
+	WriteFileLine(file, "wm_upload_results						\"0\"			//Enable or disable the uploading of match results via MySQL");
+	WriteFileLine(file, "wm_table_name							\"wm_results\"	//The MySQL table name to store match results in)");
+	WriteFileLine(file, "wm_table_name_players					\"wm_players\"	//The MySQL table name to store match players in)");
+	WriteFileLine(file, "");
+	WriteFileLine(file, "// FTP Upload");
+	WriteFileLine(file, "");
 	WriteFileLine(file, "wm_autodemoupload_enable				\"1\"			//Automatically upload demos when finished recording");
 	WriteFileLine(file, "wm_autodemoupload_bzip2				\"9\"			//Compression level. If set > 0 demos will be compressed before uploading (Requires bzip2 extension)");
 	WriteFileLine(file, "wm_autodemoupload_delete				\"0\"			//Delete the demo (and the bz2) if upload was successful");
@@ -523,6 +548,33 @@ static void RuleSet_OnMapLoad(char[] WM_VERSION)
 	WriteFileLine(file, "sm_deadtalk					\"0\"			//Controls how dead communicate 0 - Off, 1 - Dead players ignore teams, 2 - Dead players talk to living teammates");
 	WriteFileLine(file, "");
 	WriteFileLine(file, "exec warmod/ruleset_warmup.cfg", false);// no newline at the end
+	CloseHandle(file);
+}
+
+static void RuleSet_Knife(char[] WM_VERSION)
+{
+	ServerCommand("exec warmod/ruleset_knife.cfg");
+	char cfgFile[PLATFORM_MAX_PATH];
+	Format(cfgFile, sizeof(cfgFile), "cfg/warmod/ruleset_knife.cfg");
+	
+	DeleteFile(cfgFile);
+	Handle file = OpenFile(cfgFile, "w");
+
+	WriteFileLine(file, "// WarMod [BFG] - Knife Ruleset Config");
+	WriteFileLine(file, "// Updated via [BFG] WarMod Config Updater for Warmod v%s", WM_VERSION);
+	WriteFileLine(file, "// Exec global config");
+	WriteFileLine(file, "exec warmod/ruleset_global.cfg");
+	WriteFileLine(file, "");
+	WriteFileLine(file, "// Change Knife commands");
+	WriteFileLine(file, "mp_maxrounds		\"30\"		//max number of rounds to play before server changes maps");
+	WriteFileLine(file, "mp_match_can_clinch		\"1\"		//Can a team clinch and end the match by being so far ahead that the other team has no way to catching up?");
+	WriteFileLine(file, "mp_overtime_enable		\"0\"		//If a match ends in a tie, use overtime rules to determine winner");
+	WriteFileLine(file, "mp_startmoney		\"0\"			//amount of money each player gets when they reset");
+	WriteFileLine(file, "mp_roundtime		\"60.00\"		//How many minutes each round takes");
+	WriteFileLine(file, "mp_roundtime_defuse		\"60.00\"		//How many minutes each round of Bomb Defuse takes. If 0 then use mp_roundtime instead");
+	WriteFileLine(file, "wm_round_money		\"0\"		//Enable or disable a client's team mates money to be displayed at the start of a round (to him only)");
+	WriteFileLine(file, "");
+	WriteFileLine(file, "say WarMod [BFG] Knife Match Config Loaded", false); // no newline at the end
 	CloseHandle(file);
 }
 
@@ -542,6 +594,25 @@ static void RuleSet_OnMatchEnd(char[] WM_VERSION)
 	CloseHandle(file);
 }
 
+static void Team_Captains_File()
+{
+	char cfgFile[PLATFORM_MAX_PATH];
+	Format(cfgFile, sizeof(cfgFile), "cfg/warmod/team_captains.txt");
+	Handle file = OpenFile(cfgFile, "w");
+
+	WriteFileLine(file, "\"Captains\"");
+	WriteFileLine(file, "{");
+	WriteFileLine(file, "	\"STEAM_1:0:635066\"");
+	WriteFileLine(file, "	{");
+	WriteFileLine(file, "		\"name\"		\"Versatile BFG\"");
+	WriteFileLine(file, "		\"teamname\"	\"BFG\"");
+	WriteFileLine(file, "		\"teamlogo\"	\"bfg\"");
+	WriteFileLine(file, "		\"teamflag\"	\"au\"");
+	WriteFileLine(file, "	}");
+	WriteFileLine(file, "}", false);
+	CloseHandle(file);
+}
+
 static void CreateTranslationFile()
 {
 	char cfgFile[PLATFORM_MAX_PATH];
@@ -552,6 +623,10 @@ static void CreateTranslationFile()
 	WriteFileLine(file, "	\"Safe Mode\"");
 	WriteFileLine(file, "	{");
 	WriteFileLine(file, "		\"en\"			\"Safe Mode Enabled. Feature is disabled.\"");
+	WriteFileLine(file, "	}");
+	WriteFileLine(file, "	\"Practice Mode Active\"");
+	WriteFileLine(file, "	{");
+	WriteFileLine(file, "		\"en\"			\"Practice Mode Activated\"");
 	WriteFileLine(file, "	}");
 	WriteFileLine(file, "	\"Match Reset\"");
 	WriteFileLine(file, "	{");
@@ -1192,6 +1267,7 @@ static void UpdateRuleSet_Global(char[] WM_VERSION)
 	WriteFileLine(file, "wm_veto_bo3				\"%i\"	//Veto Style: 0 = Normal, 1 = New", GetConVarInt(FindConVar("wm_veto_bo3")));
 	WriteFileLine(file, "wm_veto_random				\"%i\"	//After the vetoing is done, will a map be picked at random?", GetConVarInt(FindConVar("wm_veto_random")));
 	WriteFileLine(file, "wm_veto_select				\"%i\"	//On last two maps of Veto Bo1 will it be select map to play: 0 = No, 1 = Yes", GetConVarInt(FindConVar("wm_veto_select")));
+	WriteFileLine(file, "wm_captain_from_file		\"%i\"	//Get team captains from file? 0 = No, 1 = Yes", GetConVarInt(FindConVar("wm_captain_from_file")));
 	GetConVarString(FindConVar("wm_pugsetup_maplist_file"), convarString, sizeof(convarString));
 	if (StrEqual(convarString, "configs/maps.txt", false))
 	{
@@ -1369,6 +1445,35 @@ static void UpdatePractice(char[] WM_VERSION)
 	WriteFileLine(file, "");
 	WriteFileLine(file, "say WarMod [BFG] Practice Config Loaded", false); // no newline at the end
 	CloseHandle(file);
+	UpdateRuleSet_Knife(WM_VERSION);
+}
+
+static void UpdateRuleSet_Knife(char[] WM_VERSION)
+{
+	ServerCommand("exec warmod/ruleset_knife.cfg");
+	char cfgFile[PLATFORM_MAX_PATH];
+	Format(cfgFile, sizeof(cfgFile), "cfg/warmod/ruleset_knife.cfg");
+	
+	DeleteFile(cfgFile);
+	Handle file = OpenFile(cfgFile, "w");
+
+	WriteFileLine(file, "// WarMod [BFG] - Knife Ruleset Config");
+	WriteFileLine(file, "// Updated via [BFG] WarMod Config Updater for Warmod v%s", WM_VERSION);
+	WriteFileLine(file, "// Exec global config");
+	WriteFileLine(file, "exec warmod/ruleset_global.cfg");
+	WriteFileLine(file, "");
+	WriteFileLine(file, "// Change Knife commands");
+	WriteFileLine(file, "mp_maxrounds		\"30\"		//max number of rounds to play before server changes maps");
+	WriteFileLine(file, "mp_match_can_clinch		\"1\"		//Can a team clinch and end the match by being so far ahead that the other team has no way to catching up?");
+	WriteFileLine(file, "mp_overtime_enable		\"0\"		//If a match ends in a tie, use overtime rules to determine winner");
+	WriteFileLine(file, "mp_startmoney		\"0\"			//amount of money each player gets when they reset");
+	WriteFileLine(file, "mp_roundtime		\"60.00\"		//How many minutes each round takes");
+	WriteFileLine(file, "mp_roundtime_defuse		\"60.00\"		//How many minutes each round of Bomb Defuse takes. If 0 then use mp_roundtime instead");
+	WriteFileLine(file, "wm_round_money		\"0\"		//Enable or disable a client's team mates money to be displayed at the start of a round (to him only)");
+	WriteFileLine(file, "");
+	WriteFileLine(file, "say WarMod [BFG] Knife Match Config Loaded", false); // no newline at the end
+	CloseHandle(file);
+	
 	UpdateOn_Map_Load(WM_VERSION);
 }
 
@@ -1462,6 +1567,14 @@ static void UpdateOn_Map_Load(char[] WM_VERSION)
 		WriteFileLine(file, "wm_forums_location			\"\"		//Location of where the community forums are. eg. www.warmod.com/forums/");
 		WriteFileLine(file, "");
 	}
+	WriteFileLine(file, "// FTP Upload");
+	WriteFileLine(file, "");
+	WriteFileLine(file, "wm_upload_results						\"%i\"			//Enable or disable the uploading of match results via MySQL", GetConVarInt(FindConVar("wm_upload_results")));
+	GetConVarString(FindConVar("wm_table_name"), convarString, sizeof(convarString));
+	WriteFileLine(file, "wm_table_name							\"%s\"	//The MySQL table name to store match results in)", convarString);
+	GetConVarString(FindConVar("wm_table_name_players"), convarString, sizeof(convarString));
+	WriteFileLine(file, "wm_table_name_players							\"%s\"	//The MySQL table name to store match players in)", convarString);
+	WriteFileLine(file, "");
 	WriteFileLine(file, "// FTP Upload");
 	WriteFileLine(file, "");
 	WriteFileLine(file, "wm_autodemoupload_enable				\"%i\"			//Automatically upload demos when finished recording.", GetConVarInt(FindConVar("wm_autodemoupload_enable")));
